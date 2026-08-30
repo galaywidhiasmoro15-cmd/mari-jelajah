@@ -67,6 +67,12 @@ export type Database = {
       }
       locations: {
         Row: {
+          altitude_meters: number | null
+          anchor_height_meters: number | null
+          ar_offset_x: number | null
+          ar_offset_y: number | null
+          ar_offset_z: number | null
+          ar_scale: number | null
           choices: Json | null
           content: string | null
           correct_answer: string | null
@@ -85,6 +91,12 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          altitude_meters?: number | null
+          anchor_height_meters?: number | null
+          ar_offset_x?: number | null
+          ar_offset_y?: number | null
+          ar_offset_z?: number | null
+          ar_scale?: number | null
           choices?: Json | null
           content?: string | null
           correct_answer?: string | null
@@ -103,6 +115,12 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          altitude_meters?: number | null
+          anchor_height_meters?: number | null
+          ar_offset_x?: number | null
+          ar_offset_y?: number | null
+          ar_offset_z?: number | null
+          ar_scale?: number | null
           choices?: Json | null
           content?: string | null
           correct_answer?: string | null
