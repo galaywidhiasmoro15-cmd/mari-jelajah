@@ -10,33 +10,79 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as ArRouteImport } from './routes/ar'
+import { Route as StudentRouteImport } from './routes/student'
+import { Route as ApiPublicSyncLocationsRouteImport } from './routes/api/public/sync-locations'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ArRoute = ArRouteImport.update({
+  id: '/ar',
+  path: '/ar',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StudentRoute = StudentRouteImport.update({
+  id: '/student',
+  path: '/student',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicSyncLocationsRoute = ApiPublicSyncLocationsRouteImport.update({
+  id: '/api/public/sync-locations',
+  path: '/api/public/sync-locations',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/ar': typeof ArRoute
+  '/student': typeof StudentRoute
+  '/api/public/sync-locations': typeof ApiPublicSyncLocationsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/ar': typeof ArRoute
+  '/student': typeof StudentRoute
+  '/api/public/sync-locations': typeof ApiPublicSyncLocationsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/ar': typeof ArRoute
+  '/student': typeof StudentRoute
+  '/api/public/sync-locations': typeof ApiPublicSyncLocationsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/admin' | '/ar' | '/student' | '/api/public/sync-locations'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/admin' | '/ar' | '/student' | '/api/public/sync-locations'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/ar'
+    | '/student'
+    | '/api/public/sync-locations'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRoute
+  ArRoute: typeof ArRoute
+  StudentRoute: typeof StudentRoute
+  ApiPublicSyncLocationsRoute: typeof ApiPublicSyncLocationsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +94,43 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ar': {
+      id: '/ar'
+      path: '/ar'
+      fullPath: '/ar'
+      preLoaderRoute: typeof ArRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/student': {
+      id: '/student'
+      path: '/student'
+      fullPath: '/student'
+      preLoaderRoute: typeof StudentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/sync-locations': {
+      id: '/api/public/sync-locations'
+      path: '/api/public/sync-locations'
+      fullPath: '/api/public/sync-locations'
+      preLoaderRoute: typeof ApiPublicSyncLocationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRoute,
+  ArRoute: ArRoute,
+  StudentRoute: StudentRoute,
+  ApiPublicSyncLocationsRoute: ApiPublicSyncLocationsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

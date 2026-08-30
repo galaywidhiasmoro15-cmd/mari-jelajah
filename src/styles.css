@@ -141,4 +141,12 @@
     background-color: var(--color-background);
     color: var(--color-foreground);
   }
+
+  .merapi-bg {
+    background-image: linear-gradient(rgba(255,255,255,0.45), rgba(255,255,255,0.45)), url("/__l5e/assets-v1/6285d31e-9241-4e31-96af-6770576137a5/merapi-bg.jpg");
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+  }
 }
