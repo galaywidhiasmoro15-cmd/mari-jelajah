@@ -182,7 +182,9 @@ function LocationEditor({ open, onOpenChange, initial, onSaved }: {
       title: "", description: "", content: "", lat: -6.2, lng: 106.816666,
       radius_meters: 10, kind: "materi", question: "", choices_text: "", correct_answer: "",
       points: 10, street_view_enabled: true,
+      anchor_height_meters: 1.5, ar_scale: 1, ar_offset_x: 0, ar_offset_y: 0, ar_offset_z: 0,
     });
+
   }, [initial, open]);
 
   function useMyLoc() {
