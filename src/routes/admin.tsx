@@ -241,6 +241,22 @@ function LocationEditor({ open, onOpenChange, initial, onSaved }: {
             <div><Label>Radius (m)</Label><Input type="number" min={1} value={form.radius_meters} onChange={(e) => setForm({ ...form, radius_meters: e.target.value })}/></div>
             <div><Label>Poin</Label><Input type="number" min={0} value={form.points} onChange={(e) => setForm({ ...form, points: e.target.value })}/></div>
           </div>
+          <div className="rounded-lg border p-3 space-y-2">
+            <Label className="text-sm font-semibold">Pengaturan AR (opsional)</Label>
+            <p className="text-xs text-muted-foreground">
+              Menentukan posisi objek 3D di dunia nyata. Kosongkan untuk memakai nilai bawaan.
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <div><Label>Tinggi anchor (m)</Label><Input type="number" step="0.1" value={form.anchor_height_meters ?? 1.5} onChange={(e) => setForm({ ...form, anchor_height_meters: e.target.value })}/></div>
+              <div><Label>Skala AR</Label><Input type="number" step="0.1" min={0.3} value={form.ar_scale ?? 1} onChange={(e) => setForm({ ...form, ar_scale: e.target.value })}/></div>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <div><Label>Offset X (m)</Label><Input type="number" step="0.1" value={form.ar_offset_x ?? 0} onChange={(e) => setForm({ ...form, ar_offset_x: e.target.value })}/></div>
+              <div><Label>Offset Y (m)</Label><Input type="number" step="0.1" value={form.ar_offset_y ?? 0} onChange={(e) => setForm({ ...form, ar_offset_y: e.target.value })}/></div>
+              <div><Label>Offset Z (m)</Label><Input type="number" step="0.1" value={form.ar_offset_z ?? 0} onChange={(e) => setForm({ ...form, ar_offset_z: e.target.value })}/></div>
+            </div>
+          </div>
+
           <div>
             <Label>Tipe</Label>
             <Select value={form.kind} onValueChange={(v) => setForm({ ...form, kind: v })}>
