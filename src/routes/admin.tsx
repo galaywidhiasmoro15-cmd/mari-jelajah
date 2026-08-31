@@ -211,7 +211,13 @@ function LocationEditor({ open, onOpenChange, initial, onSaved }: {
       correct_answer: form.kind === "soal" ? form.correct_answer : null,
       points: Number(form.points) || 10,
       street_view_enabled: !!form.street_view_enabled,
+      anchor_height_meters: form.anchor_height_meters === "" || form.anchor_height_meters == null ? 1.5 : Number(form.anchor_height_meters),
+      ar_scale: form.ar_scale === "" || form.ar_scale == null ? 1 : Number(form.ar_scale),
+      ar_offset_x: Number(form.ar_offset_x) || 0,
+      ar_offset_y: Number(form.ar_offset_y) || 0,
+      ar_offset_z: Number(form.ar_offset_z) || 0,
     };
+
     const q = initial
       ? supabase.from("locations").update(payload).eq("id", initial.id)
       : supabase.from("locations").insert(payload);
