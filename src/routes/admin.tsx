@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
-import { Trash2, Plus, MapPin, Shield, LogOut, Users, Activity as ActivityIcon, RefreshCw } from "lucide-react";
+import { Trash2, Plus, MapPin, Shield, LogOut, Users, Activity as ActivityIcon, RefreshCw, BookOpen } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { syncLocationsFn } from "@/lib/sheets-sync.functions";
 
@@ -92,10 +92,12 @@ function AdminDash({ onLogout }: { onLogout: () => void }) {
             <TabsTrigger value="locations"><MapPin className="h-4 w-4 mr-1"/>Lokasi</TabsTrigger>
             <TabsTrigger value="students"><Users className="h-4 w-4 mr-1"/>Siswa</TabsTrigger>
             <TabsTrigger value="activities"><ActivityIcon className="h-4 w-4 mr-1"/>Aktivitas</TabsTrigger>
+            <TabsTrigger value="guide"><BookOpen className="h-4 w-4 mr-1"/>Petunjuk</TabsTrigger>
           </TabsList>
           <TabsContent value="locations"><LocationsPanel/></TabsContent>
           <TabsContent value="students"><StudentsPanel/></TabsContent>
           <TabsContent value="activities"><ActivitiesPanel/></TabsContent>
+          <TabsContent value="guide"><GuidePanel/></TabsContent>
         </Tabs>
       </div>
     </div>
