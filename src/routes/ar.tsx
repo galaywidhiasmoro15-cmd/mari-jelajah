@@ -302,6 +302,7 @@ function ARPage() {
       <button
         onClick={() => {
           document.exitFullscreen?.().catch(() => {});
+          unlockOrientation();
           navigate({ to: "/student" });
         }}
         className="absolute right-2 top-2 z-50 rounded-full bg-black/60 p-2 text-white"
