@@ -173,8 +173,10 @@ export function ARScene(props: Props) {
     const markerRefs: { id: string; group: THREE.Group; bob: THREE.Object3D; billboards: THREE.Object3D[] }[] = [];
     const disposables: (THREE.BufferGeometry | THREE.Material | THREE.Texture)[] = [];
     let builtSignature = -1;
+    let buildToken = 0;
 
     function clearWorld() {
+      buildToken += 1;
       worldRoot.clear();
       interactives.length = 0;
       markerRefs.length = 0;
