@@ -51,8 +51,44 @@ function ARPage() {
   const openIdRef = useRef<string | null>(null);
   openIdRef.current = openId;
 
+  async function lockLandscape() {
+    try {
+      const s = screen as unknown as {
+        orientation?: { lock?: (o: string) => Promise<void>; unlock?: () => void };
+        lockOrientation?: (o: string) => boolean;
+        mozLockOrientation?: (o: string) => boolean;
+      };
+      if (s.orientation?.lock) {
+        await s.orientation.lock("landscape");
+      } else if (s.lockOrientation) {
+        s.lockOrientation("landscape");
+      } else if (s.mozLockOrientation) {
+        s.mozLockOrientation("landscape");
+      }
+    } catch {
+      /* beberapa perangkat memerlukan fullscreen dulu */
+    }
+  }
+
+  function unlockOrientation() {
+    try {
+      const s = screen as unknown as {
+        orientation?: { unlock?: () => void };
+        unlockOrientation?: () => void;
+        mozUnlockOrientation?: () => void;
+      };
+      if (s.orientation?.unlock) s.orientation.unlock();
+      else if (s.unlockOrientation) s.unlockOrientation();
+      else if (s.mozUnlockOrientation) s.mozUnlockOrientation();
+    } catch {
+      /* abaikan */
+    }
+  }
+
   useEffect(() => {
     void detectARCapabilities().then(setCaps);
+    void lockLandscape();
+    return () => unlockOrientation();
   }, []);
 
   useEffect(() => {
@@ -179,6 +215,7 @@ function ARPage() {
     setStarted(true);
     try {
       await (document.documentElement as HTMLElement & { requestFullscreen?: () => Promise<void> }).requestFullscreen?.();
+      await lockLandscape();
     } catch {
       /* opsional */
     }
@@ -265,6 +302,7 @@ function ARPage() {
       <button
         onClick={() => {
           document.exitFullscreen?.().catch(() => {});
+          unlockOrientation();
           navigate({ to: "/student" });
         }}
         className="absolute right-2 top-2 z-50 rounded-full bg-black/60 p-2 text-white"
