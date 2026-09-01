@@ -4,6 +4,7 @@ import { DeviceOrientationPose } from "@/lib/ar/devicePose";
 import { WorldAnchorSystem, isInsideRadius } from "@/lib/ar/gpsAnchor";
 import { projectObject, screenSpaceBearingDelta } from "@/lib/ar/projection";
 import { makeButtonTexture, makeLabelTexture, makePanelTexture } from "@/lib/ar/textures";
+import { extractARMedia } from "@/lib/ar/media";
 
 export type ARWorldLocation = {
   id: string;
@@ -54,6 +55,8 @@ type Props = {
 const EYE_HEIGHT = 1.55;
 const IPD = 0.064;
 const PANEL_DEFAULT_Y = 1.35;
+// Mode stereo memakai separuh lebar layar per mata → panel diperbesar agar terbaca.
+const STEREO_PANEL_SCALE = 1.8;
 
 type Interactive = {
   object: THREE.Object3D;
@@ -72,7 +75,7 @@ export function ARScene(props: Props) {
   // Rebuild objek dunia hanya bila daftar lokasi / panel yang terbuka berubah.
   const signature =
     props.locations.map((l) => `${l.id}:${l.ar_scale}:${l.anchor_height_meters}`).join("|") +
-    `#${props.openId}#${props.answered}`;
+    `#${props.openId}#${props.answered}#${props.stereo}`;
   useEffect(() => {
     dirtyRef.current += 1;
   }, [signature]);
@@ -172,8 +175,10 @@ export function ARScene(props: Props) {
     const markerRefs: { id: string; group: THREE.Group; bob: THREE.Object3D; billboards: THREE.Object3D[] }[] = [];
     const disposables: (THREE.BufferGeometry | THREE.Material | THREE.Texture)[] = [];
     let builtSignature = -1;
+    let buildToken = 0;
 
     function clearWorld() {
+      buildToken += 1;
       worldRoot.clear();
       interactives.length = 0;
       markerRefs.length = 0;
@@ -285,10 +290,13 @@ export function ARScene(props: Props) {
             anchor.position.y + (open.ar_offset_y ?? 0) + PANEL_DEFAULT_Y,
             anchor.position.z + (open.ar_offset_z ?? 0),
           );
-          panelGroup.scale.setScalar(Math.max(0.3, open.ar_scale ?? 1));
+          // Di mode stereo tiap mata hanya memakai separuh layar, jadi panel diperbesar
+          // agar teks materi/soal tetap terbaca.
+          const stereoBoost = p.stereo ? STEREO_PANEL_SCALE : 1;
+          panelGroup.scale.setScalar(Math.max(0.3, open.ar_scale ?? 1) * stereoBoost);
           worldRoot.add(panelGroup);
 
-          const bodyText =
+          const rawBody =
             p.answered === "correct"
               ? "Jawaban benar. Bagus!"
               : p.answered === "wrong"
@@ -298,14 +306,74 @@ export function ARScene(props: Props) {
                   : isSoal
                     ? (open.question ?? "")
                     : (open.content || open.description || "");
+          const media = extractARMedia(rawBody);
+          const footerBase = isSoal ? "Pandang salah satu jawaban ±1,8 detik" : `Nilai: ${open.points} poin`;
           const { texture } = makePanelTexture({
             title: open.title,
-            body: bodyText,
+            body: media.text,
             accent,
-            footer: isSoal ? "Pandang salah satu jawaban ±1,8 detik" : `Nilai: ${open.points} poin`,
+            footer: media.links.length
+              ? `${footerBase} • Tautan: ${media.links[0].replace(/^https?:\/\//, "").slice(0, 40)}`
+              : footerBase,
           });
           const panel = planeMesh(texture, 1.6, 1.0);
           panelGroup.add(panel);
+
+          // ---- media dari tautan di dalam materi/soal ----
+          const token = buildToken;
+          media.images.slice(0, 2).forEach((url, i) => {
+            const loader = new THREE.TextureLoader();
+            loader.setCrossOrigin("anonymous");
+            loader.load(
+              url,
+              (tex) => {
+                if (token !== buildToken) {
+                  tex.dispose();
+                  return;
+                }
+                tex.colorSpace = THREE.SRGBColorSpace;
+                const img = tex.image as { width?: number; height?: number } | undefined;
+                const aspect = (img?.width || 1) / (img?.height || 1);
+                const w = 1.15;
+                const h = w / Math.max(0.35, Math.min(3, aspect));
+                const mesh = planeMesh(tex, w, h);
+                mesh.position.set(1.45, 0.35 - i * (h + 0.12), 0.01);
+                panelGroup.add(mesh);
+              },
+              undefined,
+              () => {
+                propsRef.current.onError("Gambar pada materi gagal dimuat (periksa tautan/izin server gambar).");
+              },
+            );
+          });
+
+          media.models.slice(0, 1).forEach((url) => {
+            void import("three/examples/jsm/loaders/GLTFLoader.js")
+              .then(({ GLTFLoader }) => {
+                new GLTFLoader().load(
+                  url,
+                  (gltf) => {
+                    if (token !== buildToken) return;
+                    const model = gltf.scene;
+                    const box = new THREE.Box3().setFromObject(model);
+                    const size = box.getSize(new THREE.Vector3());
+                    const maxDim = Math.max(size.x, size.y, size.z) || 1;
+                    const s = 0.9 / maxDim;
+                    model.scale.setScalar(s);
+                    const center = box.getCenter(new THREE.Vector3()).multiplyScalar(s);
+                    model.position.set(-1.5 - center.x, 0.35 - center.y, -center.z);
+                    panelGroup.add(model);
+                  },
+                  undefined,
+                  () => {
+                    propsRef.current.onError("Model 3D pada materi gagal dimuat.");
+                  },
+                );
+              })
+              .catch(() => {
+                /* abaikan */
+              });
+          });
 
           const billboards: THREE.Object3D[] = [panelGroup];
 
