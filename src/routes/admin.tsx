@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
-import { Trash2, Plus, MapPin, Shield, LogOut, Users, Activity as ActivityIcon, RefreshCw } from "lucide-react";
+import { Trash2, Plus, MapPin, Shield, LogOut, Users, Activity as ActivityIcon, RefreshCw, BookOpen } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { syncLocationsFn } from "@/lib/sheets-sync.functions";
 
@@ -92,10 +92,12 @@ function AdminDash({ onLogout }: { onLogout: () => void }) {
             <TabsTrigger value="locations"><MapPin className="h-4 w-4 mr-1"/>Lokasi</TabsTrigger>
             <TabsTrigger value="students"><Users className="h-4 w-4 mr-1"/>Siswa</TabsTrigger>
             <TabsTrigger value="activities"><ActivityIcon className="h-4 w-4 mr-1"/>Aktivitas</TabsTrigger>
+            <TabsTrigger value="guide"><BookOpen className="h-4 w-4 mr-1"/>Petunjuk</TabsTrigger>
           </TabsList>
           <TabsContent value="locations"><LocationsPanel/></TabsContent>
           <TabsContent value="students"><StudentsPanel/></TabsContent>
           <TabsContent value="activities"><ActivitiesPanel/></TabsContent>
+          <TabsContent value="guide"><GuidePanel/></TabsContent>
         </Tabs>
       </div>
     </div>
@@ -393,6 +395,82 @@ function ActivitiesPanel() {
         </CardContent></Card>
       ))}
       {items.length === 0 && <p className="text-sm text-muted-foreground">Belum ada aktivitas.</p>}
+    </div>
+  );
+}
+
+function GuideSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <Card>
+      <CardHeader className="pb-2"><CardTitle className="text-base">{title}</CardTitle></CardHeader>
+      <CardContent className="text-sm space-y-1.5 text-slate-700">{children}</CardContent>
+    </Card>
+  );
+}
+
+function GuidePanel() {
+  return (
+    <div className="pt-4 space-y-3 max-w-3xl">
+      <GuideSection title="Alur dasar penggunaan">
+        <ol className="list-decimal pl-5 space-y-1">
+          <li>Buka tab <b>Lokasi</b>, lalu klik <b>Tambah</b> untuk membuat titik materi atau soal.</li>
+          <li>Isi judul, koordinat (bisa klik <b>Pakai lokasi saya</b> saat berdiri di titik tersebut), radius, dan poin.</li>
+          <li>Pilih tipe <b>Materi</b> (teks pembelajaran) atau <b>Soal</b> (pertanyaan pilihan ganda).</li>
+          <li>Atur bagian <b>Pengaturan AR</b> bila perlu (penjelasan di bawah), lalu Simpan.</li>
+          <li>Siswa membuka aplikasi, memilih mode AR, berjalan mendekati titik sesuai radius, lalu panel materi/soal muncul.</li>
+        </ol>
+      </GuideSection>
+
+      <GuideSection title="Latitude, Longitude & Radius">
+        <p><b>Latitude / Longitude</b> — posisi titik di dunia nyata. Paling akurat diisi dengan tombol <b>Pakai lokasi saya</b> sambil berdiri tepat di lokasi.</p>
+        <p><b>Radius (m)</b> — jarak maksimal siswa dari titik agar materi/soal terbuka. Contoh: radius 10 berarti siswa harus berada dalam jarak 10 meter dari titik. GPS ponsel biasanya memiliki kesalahan 3–10 m, jadi hindari radius di bawah 5 m.</p>
+      </GuideSection>
+
+      <GuideSection title="Tinggi anchor (m) — ketinggian panel di udara">
+        <p>Menentukan seberapa tinggi penanda dan panel soal/materi melayang dari tanah, diukur dalam meter.</p>
+        <ul className="list-disc pl-5 space-y-1">
+          <li><b>1.5</b> (bawaan) ≈ sejajar mata orang dewasa — cocok untuk kebanyakan kasus.</li>
+          <li>Nilai lebih kecil (mis. 0.8) → panel lebih rendah, nyaman untuk anak kecil.</li>
+          <li>Nilai lebih besar (mis. 2.5) → panel melayang lebih tinggi.</li>
+        </ul>
+      </GuideSection>
+
+      <GuideSection title="Skala AR — ukuran panel soal/materi">
+        <p>Pengali ukuran keseluruhan panel (kotak dialog soal/materi) di tampilan AR.</p>
+        <ul className="list-disc pl-5 space-y-1">
+          <li><b>1</b> = ukuran normal. <b>1.5</b> = 50% lebih besar. <b>0.6</b> = lebih kecil.</li>
+          <li>Naikkan skala jika teks soal terlihat terlalu kecil di layar siswa; turunkan jika panel menutupi terlalu banyak pandangan.</li>
+          <li>Di mode stereo (kacamata VR), panel otomatis diperbesar tambahan agar tetap terbaca.</li>
+        </ul>
+      </GuideSection>
+
+      <GuideSection title="Offset X / Y / Z — menggeser posisi panel">
+        <p>Menggeser posisi penanda dan panel dari titik koordinatnya, dalam meter. Gunakan jika panel ingin digeser sedikit tanpa mengubah koordinat GPS.</p>
+        <ul className="list-disc pl-5 space-y-1">
+          <li><b>Offset X</b> — geser ke timur (+) atau barat (−).</li>
+          <li><b>Offset Y</b> — geser naik (+) atau turun (−), ditambahkan di atas tinggi anchor.</li>
+          <li><b>Offset Z</b> — geser ke selatan (+) atau utara (−).</li>
+        </ul>
+        <p>Contoh: Offset X = 2 menggeser panel 2 meter ke arah timur dari titik GPS. Kosongkan (0) jika tidak perlu.</p>
+      </GuideSection>
+
+      <GuideSection title="Menyisipkan gambar, model 3D & tautan">
+        <p>Di dalam <b>Isi materi</b> atau <b>Pertanyaan</b>, tautan yang ditempel akan dikenali otomatis:</p>
+        <ul className="list-disc pl-5 space-y-1">
+          <li>Tautan langsung ke gambar (<code>.jpg</code>, <code>.png</code>, <code>.webp</code>, dll.) → gambar tampil sebagai panel 3D di samping kotak dialog.</li>
+          <li>Tautan ke model <code>.glb</code> / <code>.gltf</code> → model 3D tampil di samping panel.</li>
+          <li>Tautan lain (mis. YouTube) → dapat diklik, dan alamatnya tampil di bagian bawah panel.</li>
+        </ul>
+        <p>Format lanjutan: <code>[teks](https://…)</code> untuk tautan berlabel, <code>![keterangan](https://…)</code> untuk gambar. Pastikan tautan diawali <code>https://</code> dan server gambar mengizinkan akses lintas situs (CORS).</p>
+      </GuideSection>
+
+      <GuideSection title="Sinkronisasi Google Sheets">
+        <p>Tombol <b>Sync Google Sheets</b> di tab Lokasi menarik daftar titik dari spreadsheet yang terhubung, sehingga banyak lokasi bisa dikelola sekaligus tanpa mengisi formulir satu per satu.</p>
+      </GuideSection>
+
+      <GuideSection title="Kelola siswa & aktivitas">
+        <p>Tab <b>Siswa</b> menampilkan papan peringkat (poin & level) serta opsi menghapus siswa satu per satu, yang tidak aktif 30 hari, atau semuanya. Tab <b>Aktivitas</b> menampilkan riwayat terakhir: siapa membuka materi apa, jawaban yang dipilih, dan poin yang diperoleh.</p>
+      </GuideSection>
     </div>
   );
 }
