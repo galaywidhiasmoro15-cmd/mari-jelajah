@@ -4,6 +4,7 @@ import { DeviceOrientationPose } from "@/lib/ar/devicePose";
 import { WorldAnchorSystem, isInsideRadius } from "@/lib/ar/gpsAnchor";
 import { projectObject, screenSpaceBearingDelta } from "@/lib/ar/projection";
 import { makeButtonTexture, makeLabelTexture, makePanelTexture } from "@/lib/ar/textures";
+import { extractARMedia } from "@/lib/ar/media";
 
 export type ARWorldLocation = {
   id: string;
