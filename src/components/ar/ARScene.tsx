@@ -72,7 +72,7 @@ export function ARScene(props: Props) {
   // Rebuild objek dunia hanya bila daftar lokasi / panel yang terbuka berubah.
   const signature =
     props.locations.map((l) => `${l.id}:${l.ar_scale}:${l.anchor_height_meters}`).join("|") +
-    `#${props.openId}#${props.answered}`;
+    `#${props.openId}#${props.answered}#${props.stereo}`;
   useEffect(() => {
     dirtyRef.current += 1;
   }, [signature]);
