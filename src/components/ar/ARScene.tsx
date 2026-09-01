@@ -55,6 +55,8 @@ type Props = {
 const EYE_HEIGHT = 1.55;
 const IPD = 0.064;
 const PANEL_DEFAULT_Y = 1.35;
+// Mode stereo memakai separuh lebar layar per mata → panel diperbesar agar terbaca.
+const STEREO_PANEL_SCALE = 1.8;
 
 type Interactive = {
   object: THREE.Object3D;
