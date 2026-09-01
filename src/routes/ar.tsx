@@ -215,6 +215,7 @@ function ARPage() {
     setStarted(true);
     try {
       await (document.documentElement as HTMLElement & { requestFullscreen?: () => Promise<void> }).requestFullscreen?.();
+      await lockLandscape();
     } catch {
       /* opsional */
     }
