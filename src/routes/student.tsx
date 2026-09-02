@@ -138,11 +138,59 @@ function Explorer({ student, onLogout, onUpdate }: { student: Student; onLogout:
   const meMarkerRef = useRef<any>(null);
   const meCircleRef = useRef<any>(null);
   const didFitRef = useRef(false);
+  const [dwell, setDwell] = useState<Record<string, number>>({});
+  const [earned, setEarned] = useState<Set<string>>(new Set());
+  const posRef = useRef<{ lat: number; lng: number; accuracy: number } | null>(null);
+  const locRef = useRef<Location[]>([]);
+  const earnedRef = useRef<Set<string>>(new Set());
+  posRef.current = pos;
+  locRef.current = locations;
+  earnedRef.current = earned;
 
   // Fetch locations
   useEffect(() => {
     supabase.from("locations").select("*").then(({ data }) => setLocations((data as Location[]) || []));
   }, []);
+
+  // Titik yang poinnya sudah pernah didapat -> tidak bisa dapat poin lagi
+  useEffect(() => {
+    supabase
+      .from("activities")
+      .select("location_id, action, is_correct")
+      .eq("student_id", student.id)
+      .then(({ data }) => {
+        const set = new Set<string>();
+        (data || []).forEach((a: any) => {
+          if (a.action === "award_materi" || a.is_correct === true) set.add(a.location_id);
+        });
+        set.forEach((id) => markDwellComplete(student.id, id));
+        setEarned(set);
+      });
+  }, [student.id]);
+
+  // Hitung mundur: akumulasi waktu selama siswa berada di dalam radius
+  useEffect(() => {
+    const tick = 1000;
+    const id = window.setInterval(() => {
+      const p = posRef.current;
+      if (!p) return;
+      const next: Record<string, number> = {};
+      let changed = false;
+      locRef.current.forEach((l) => {
+        const inside = haversineMeters(p, { lat: l.lat, lng: l.lng }) <= l.radius_meters;
+        const prev = getDwellMs(student.id, l.id);
+        if (inside && !earnedRef.current.has(l.id) && prev < DWELL_REQUIRED_MS) {
+          next[l.id] = addDwellMs(student.id, l.id, tick);
+          changed = true;
+        } else {
+          next[l.id] = prev;
+        }
+      });
+      if (changed || Object.keys(next).length) setDwell(next);
+    }, tick);
+    return () => window.clearInterval(id);
+  }, [student.id]);
+
 
   // GPS watch
   useEffect(() => {
