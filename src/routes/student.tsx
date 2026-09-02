@@ -304,9 +304,19 @@ function Explorer({ student, onLogout, onUpdate }: { student: Student; onLogout:
   const enriched = useMemo(() => {
     return locations.map((l) => {
       const dist = pos ? haversineMeters(pos, { lat: l.lat, lng: l.lng }) : Infinity;
-      return { ...l, distance: dist, inRange: dist <= l.radius_meters };
+      const dwellMs = dwell[l.id] ?? 0;
+      const done = earned.has(l.id);
+      return {
+        ...l,
+        distance: dist,
+        inRange: dist <= l.radius_meters,
+        dwellMs,
+        remainingMs: done ? 0 : Math.max(0, DWELL_REQUIRED_MS - dwellMs),
+        earned: done,
+      };
     }).sort((a, b) => a.distance - b.distance);
-  }, [locations, pos]);
+  }, [locations, pos, dwell, earned]);
+
 
   async function refreshStudent() {
     const { data } = await supabase.from("students").select("*").eq("id", student.id).single();
