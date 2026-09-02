@@ -3,6 +3,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getStudentId, setStudentId, clearStudent } from "@/lib/session";
 import { haversineMeters, levelFromPoints } from "@/lib/geo";
+import {
+  DWELL_REQUIRED_MS,
+  addDwellMs,
+  formatCountdown,
+  getDwellMs,
+  markDwellComplete,
+} from "@/lib/dwell";
 import { loadGoogleMaps } from "@/lib/googleMaps";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
