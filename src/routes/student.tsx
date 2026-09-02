@@ -546,6 +546,24 @@ function LocationDialog({
             )}
           </div>
 
+          {alreadyEarned ? (
+            <div className="rounded-lg bg-slate-100 p-3 text-sm font-semibold text-slate-700">
+              ✓ Poin titik ini sudah kamu dapatkan. Kunjungan berikutnya tidak menambah poin.
+            </div>
+          ) : (
+            <div className={`rounded-lg p-3 text-center ${dwellDone ? "bg-emerald-100 text-emerald-900" : "bg-amber-100 text-amber-900"}`}>
+              <div className="text-[11px] uppercase tracking-wide">Waktu belajar di titik ini</div>
+              <div className="text-3xl font-black tabular-nums">{formatCountdown(remainingMs)}</div>
+              <div className="text-[11px]">
+                {dwellDone
+                  ? "Waktu terpenuhi — poin bisa diambil!"
+                  : inRange
+                    ? "Hitung mundur berjalan selama kamu di dalam radius."
+                    : "Hitung mundur berhenti. Masuk ke radius untuk melanjutkan."}
+              </div>
+            </div>
+          )}
+
           {location.description && (
             <RichText text={location.description} className="text-sm text-muted-foreground" />
           )}
@@ -567,8 +585,12 @@ function LocationDialog({
                 text={location.content ?? ""}
                 className="prose prose-sm max-w-none rounded-lg bg-slate-50 p-3 leading-relaxed"
               />
-              {!done && <Button onClick={openContent} className="w-full bg-emerald-600 hover:bg-emerald-700">Selesai baca (+{location.points} poin)</Button>}
-              {done && <div className="text-center text-emerald-600 font-semibold">✓ Selesai</div>}
+              {!done && !alreadyEarned && (
+                <Button onClick={openContent} disabled={!dwellDone} className="w-full bg-emerald-600 hover:bg-emerald-700">
+                  {dwellDone ? `Selesai baca (+${location.points} poin)` : `Tunggu ${formatCountdown(remainingMs)} lagi`}
+                </Button>
+              )}
+              {(done || alreadyEarned) && <div className="text-center text-emerald-600 font-semibold">✓ Selesai</div>}
             </div>
           ) : (
             <div className="space-y-3">
@@ -582,12 +604,16 @@ function LocationDialog({
                   >{c}</button>
                 ))}
               </div>
-              <Button onClick={submitAnswer} disabled={!answer || submitting} className="w-full bg-amber-500 hover:bg-amber-600">
-                {submitting ? "Mengirim…" : `Kirim jawaban (+${location.points} poin bila benar)`}
+              <Button onClick={submitAnswer} disabled={!answer || submitting || !dwellDone} className="w-full bg-amber-500 hover:bg-amber-600">
+                {!dwellDone
+                  ? `Tunggu ${formatCountdown(remainingMs)} lagi`
+                  : submitting ? "Mengirim…" : `Kirim jawaban (+${location.points} poin bila benar)`}
               </Button>
+              {alreadyEarned && <p className="text-[11px] text-muted-foreground">Poin titik ini sudah didapat; menjawab lagi tidak menambah poin.</p>}
             </div>
           )}
         </div>
+
       </DialogContent>
     </Dialog>
   );
