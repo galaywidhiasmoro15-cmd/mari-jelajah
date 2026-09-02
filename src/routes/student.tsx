@@ -437,13 +437,15 @@ function Explorer({ student, onLogout, onUpdate }: { student: Student; onLogout:
 }
 
 function LocationDialog({
-  location, onClose, pos, student, onCompleted,
+  location, onClose, pos, student, dwellMs, alreadyEarned, onCompleted,
 }: {
   location: Location | null;
   onClose: () => void;
   pos: { lat: number; lng: number; accuracy: number } | null;
   student: Student;
-  onCompleted: () => void;
+  dwellMs: number;
+  alreadyEarned: boolean;
+  onCompleted: (locationId: string) => void;
 }) {
   const [answer, setAnswer] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -454,6 +456,8 @@ function LocationDialog({
   if (!location) return null;
   const dist = pos ? haversineMeters(pos, { lat: location.lat, lng: location.lng }) : Infinity;
   const inRange = dist <= location.radius_meters;
+  const remainingMs = alreadyEarned ? 0 : Math.max(0, DWELL_REQUIRED_MS - dwellMs);
+  const dwellDone = remainingMs <= 0;
 
   async function logActivity(action: string, extra: Partial<{ answer: string; is_correct: boolean; points_earned: number }> = {}) {
     await supabase.from("activities").insert({
@@ -467,6 +471,10 @@ function LocationDialog({
 
   async function openContent() {
     if (!inRange) return;
+    if (!dwellDone) {
+      toast.error(`Tetap di titik ini ${formatCountdown(remainingMs)} lagi untuk mendapatkan poin.`);
+      return;
+    }
     await logActivity("open_materi");
     // award points (once per location for materi)
     const { data: prev } = await supabase.from("activities").select("id")
@@ -476,13 +484,20 @@ function LocationDialog({
       await supabase.from("students").update({ points: newPoints, level: levelFromPoints(newPoints) }).eq("id", student.id);
       await logActivity("award_materi", { points_earned: location!.points });
       toast.success(`+${location!.points} poin! Materi dibuka.`);
-      onCompleted();
+    } else {
+      toast.info("Poin untuk titik ini sudah pernah kamu dapatkan.");
     }
+    markDwellComplete(student.id, location!.id);
+    onCompleted(location!.id);
     setDone(true);
   }
 
   async function submitAnswer() {
     if (!inRange || !answer) return;
+    if (!dwellDone) {
+      toast.error(`Tetap di titik ini ${formatCountdown(remainingMs)} lagi sebelum menjawab.`);
+      return;
+    }
     setSubmitting(true);
     const correct = answer === location!.correct_answer;
     let earned = 0;
@@ -500,8 +515,13 @@ function LocationDialog({
     if (correct) toast.success(earned > 0 ? `Benar! +${earned} poin` : "Benar! (poin sudah didapat sebelumnya)");
     else toast.error("Jawaban belum tepat. Coba lagi.");
     setSubmitting(false);
-    if (correct) { setDone(true); onCompleted(); }
+    if (correct) {
+      markDwellComplete(student.id, location!.id);
+      setDone(true);
+      onCompleted(location!.id);
+    }
   }
+
 
   const streetViewUrl = location.street_view_enabled
     ? `https://www.google.com/maps/embed/v1/streetview?key=${import.meta.env.VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY}&location=${location.lat},${location.lng}&heading=0&pitch=0&fov=90`
