@@ -396,6 +396,15 @@ function Explorer({ student, onLogout, onUpdate }: { student: Student; onLogout:
               <div className="flex-1 min-w-0">
                 <div className="font-semibold truncate">{l.title}</div>
                 <div className="text-xs text-muted-foreground truncate">{l.description}</div>
+                {l.earned ? (
+                  <div className="text-[11px] font-semibold text-emerald-600">✓ Poin sudah didapat</div>
+                ) : l.inRange ? (
+                  <div className="text-[11px] font-semibold text-amber-600">
+                    {l.remainingMs > 0 ? `⏳ Sisa ${formatCountdown(l.remainingMs)} untuk dapat poin` : "✓ Waktu terpenuhi, poin siap diambil"}
+                  </div>
+                ) : (
+                  <div className="text-[11px] text-slate-400">Butuh 2 menit di dalam radius</div>
+                )}
               </div>
               <div className="text-right">
                 <div className={`text-sm font-bold ${l.inRange ? "text-emerald-600" : "text-slate-500"}`}>
@@ -415,8 +424,14 @@ function Explorer({ student, onLogout, onUpdate }: { student: Student; onLogout:
         onClose={() => setSelected(null)}
         pos={pos}
         student={student}
-        onCompleted={refreshStudent}
+        dwellMs={selected ? (dwell[selected.id] ?? 0) : 0}
+        alreadyEarned={selected ? earned.has(selected.id) : false}
+        onCompleted={(id) => {
+          setEarned((prev) => new Set(prev).add(id));
+          void refreshStudent();
+        }}
       />
+
     </div>
   );
 }
