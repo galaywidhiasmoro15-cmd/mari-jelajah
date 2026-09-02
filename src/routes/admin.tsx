@@ -421,6 +421,18 @@ function GuidePanel() {
         </ol>
       </GuideSection>
 
+      <GuideSection title="Aturan poin & timer 2 menit">
+        <p>Siswa <b>harus berada di dalam radius selama 2 menit</b> sebelum boleh mengambil poin, dengan asumsi mereka membaca materi atau soal terlebih dahulu.</p>
+        <ul className="list-disc pl-5 space-y-1">
+          <li>Hitung mundur ditampilkan di kartu titik, dialog materi/soal, dan HUD mode AR.</li>
+          <li>Hitung mundur <b>berjalan hanya saat siswa di dalam radius</b> dan berhenti (tidak mengulang dari awal) bila siswa keluar radius.</li>
+          <li>Tombol “Selesai baca” dan “Kirim jawaban” terkunci sampai hitung mundur selesai.</li>
+          <li>Poin sebuah titik <b>hanya bisa didapat satu kali</b>. Kunjungan berikutnya tidak menambah poin.</li>
+        </ul>
+      </GuideSection>
+
+
+
       <GuideSection title="Latitude, Longitude & Radius">
         <p><b>Latitude / Longitude</b> — posisi titik di dunia nyata. Paling akurat diisi dengan tombol <b>Pakai lokasi saya</b> sambil berdiri tepat di lokasi.</p>
         <p><b>Radius (m)</b> — jarak maksimal siswa dari titik agar materi/soal terbuka. Contoh: radius 10 berarti siswa harus berada dalam jarak 10 meter dari titik. GPS ponsel biasanya memiliki kesalahan 3–10 m, jadi hindari radius di bawah 5 m.</p>
