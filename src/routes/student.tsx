@@ -3,6 +3,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getStudentId, setStudentId, clearStudent } from "@/lib/session";
 import { haversineMeters, levelFromPoints } from "@/lib/geo";
+import {
+  DWELL_REQUIRED_MS,
+  addDwellMs,
+  formatCountdown,
+  getDwellMs,
+  markDwellComplete,
+} from "@/lib/dwell";
 import { loadGoogleMaps } from "@/lib/googleMaps";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -131,11 +138,59 @@ function Explorer({ student, onLogout, onUpdate }: { student: Student; onLogout:
   const meMarkerRef = useRef<any>(null);
   const meCircleRef = useRef<any>(null);
   const didFitRef = useRef(false);
+  const [dwell, setDwell] = useState<Record<string, number>>({});
+  const [earned, setEarned] = useState<Set<string>>(new Set());
+  const posRef = useRef<{ lat: number; lng: number; accuracy: number } | null>(null);
+  const locRef = useRef<Location[]>([]);
+  const earnedRef = useRef<Set<string>>(new Set());
+  posRef.current = pos;
+  locRef.current = locations;
+  earnedRef.current = earned;
 
   // Fetch locations
   useEffect(() => {
     supabase.from("locations").select("*").then(({ data }) => setLocations((data as Location[]) || []));
   }, []);
+
+  // Titik yang poinnya sudah pernah didapat -> tidak bisa dapat poin lagi
+  useEffect(() => {
+    supabase
+      .from("activities")
+      .select("location_id, action, is_correct")
+      .eq("student_id", student.id)
+      .then(({ data }) => {
+        const set = new Set<string>();
+        (data || []).forEach((a: any) => {
+          if (a.action === "award_materi" || a.is_correct === true) set.add(a.location_id);
+        });
+        set.forEach((id) => markDwellComplete(student.id, id));
+        setEarned(set);
+      });
+  }, [student.id]);
+
+  // Hitung mundur: akumulasi waktu selama siswa berada di dalam radius
+  useEffect(() => {
+    const tick = 1000;
+    const id = window.setInterval(() => {
+      const p = posRef.current;
+      if (!p) return;
+      const next: Record<string, number> = {};
+      let changed = false;
+      locRef.current.forEach((l) => {
+        const inside = haversineMeters(p, { lat: l.lat, lng: l.lng }) <= l.radius_meters;
+        const prev = getDwellMs(student.id, l.id);
+        if (inside && !earnedRef.current.has(l.id) && prev < DWELL_REQUIRED_MS) {
+          next[l.id] = addDwellMs(student.id, l.id, tick);
+          changed = true;
+        } else {
+          next[l.id] = prev;
+        }
+      });
+      if (changed || Object.keys(next).length) setDwell(next);
+    }, tick);
+    return () => window.clearInterval(id);
+  }, [student.id]);
+
 
   // GPS watch
   useEffect(() => {
@@ -249,9 +304,19 @@ function Explorer({ student, onLogout, onUpdate }: { student: Student; onLogout:
   const enriched = useMemo(() => {
     return locations.map((l) => {
       const dist = pos ? haversineMeters(pos, { lat: l.lat, lng: l.lng }) : Infinity;
-      return { ...l, distance: dist, inRange: dist <= l.radius_meters };
+      const dwellMs = dwell[l.id] ?? 0;
+      const done = earned.has(l.id);
+      return {
+        ...l,
+        distance: dist,
+        inRange: dist <= l.radius_meters,
+        dwellMs,
+        remainingMs: done ? 0 : Math.max(0, DWELL_REQUIRED_MS - dwellMs),
+        earned: done,
+      };
     }).sort((a, b) => a.distance - b.distance);
-  }, [locations, pos]);
+  }, [locations, pos, dwell, earned]);
+
 
   async function refreshStudent() {
     const { data } = await supabase.from("students").select("*").eq("id", student.id).single();
@@ -331,6 +396,15 @@ function Explorer({ student, onLogout, onUpdate }: { student: Student; onLogout:
               <div className="flex-1 min-w-0">
                 <div className="font-semibold truncate">{l.title}</div>
                 <div className="text-xs text-muted-foreground truncate">{l.description}</div>
+                {l.earned ? (
+                  <div className="text-[11px] font-semibold text-emerald-600">✓ Poin sudah didapat</div>
+                ) : l.inRange ? (
+                  <div className="text-[11px] font-semibold text-amber-600">
+                    {l.remainingMs > 0 ? `⏳ Sisa ${formatCountdown(l.remainingMs)} untuk dapat poin` : "✓ Waktu terpenuhi, poin siap diambil"}
+                  </div>
+                ) : (
+                  <div className="text-[11px] text-slate-400">Butuh 2 menit di dalam radius</div>
+                )}
               </div>
               <div className="text-right">
                 <div className={`text-sm font-bold ${l.inRange ? "text-emerald-600" : "text-slate-500"}`}>
@@ -350,20 +424,28 @@ function Explorer({ student, onLogout, onUpdate }: { student: Student; onLogout:
         onClose={() => setSelected(null)}
         pos={pos}
         student={student}
-        onCompleted={refreshStudent}
+        dwellMs={selected ? (dwell[selected.id] ?? 0) : 0}
+        alreadyEarned={selected ? earned.has(selected.id) : false}
+        onCompleted={(id) => {
+          setEarned((prev) => new Set(prev).add(id));
+          void refreshStudent();
+        }}
       />
+
     </div>
   );
 }
 
 function LocationDialog({
-  location, onClose, pos, student, onCompleted,
+  location, onClose, pos, student, dwellMs, alreadyEarned, onCompleted,
 }: {
   location: Location | null;
   onClose: () => void;
   pos: { lat: number; lng: number; accuracy: number } | null;
   student: Student;
-  onCompleted: () => void;
+  dwellMs: number;
+  alreadyEarned: boolean;
+  onCompleted: (locationId: string) => void;
 }) {
   const [answer, setAnswer] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -374,6 +456,8 @@ function LocationDialog({
   if (!location) return null;
   const dist = pos ? haversineMeters(pos, { lat: location.lat, lng: location.lng }) : Infinity;
   const inRange = dist <= location.radius_meters;
+  const remainingMs = alreadyEarned ? 0 : Math.max(0, DWELL_REQUIRED_MS - dwellMs);
+  const dwellDone = remainingMs <= 0;
 
   async function logActivity(action: string, extra: Partial<{ answer: string; is_correct: boolean; points_earned: number }> = {}) {
     await supabase.from("activities").insert({
@@ -387,6 +471,10 @@ function LocationDialog({
 
   async function openContent() {
     if (!inRange) return;
+    if (!dwellDone) {
+      toast.error(`Tetap di titik ini ${formatCountdown(remainingMs)} lagi untuk mendapatkan poin.`);
+      return;
+    }
     await logActivity("open_materi");
     // award points (once per location for materi)
     const { data: prev } = await supabase.from("activities").select("id")
@@ -396,13 +484,20 @@ function LocationDialog({
       await supabase.from("students").update({ points: newPoints, level: levelFromPoints(newPoints) }).eq("id", student.id);
       await logActivity("award_materi", { points_earned: location!.points });
       toast.success(`+${location!.points} poin! Materi dibuka.`);
-      onCompleted();
+    } else {
+      toast.info("Poin untuk titik ini sudah pernah kamu dapatkan.");
     }
+    markDwellComplete(student.id, location!.id);
+    onCompleted(location!.id);
     setDone(true);
   }
 
   async function submitAnswer() {
     if (!inRange || !answer) return;
+    if (!dwellDone) {
+      toast.error(`Tetap di titik ini ${formatCountdown(remainingMs)} lagi sebelum menjawab.`);
+      return;
+    }
     setSubmitting(true);
     const correct = answer === location!.correct_answer;
     let earned = 0;
@@ -420,8 +515,13 @@ function LocationDialog({
     if (correct) toast.success(earned > 0 ? `Benar! +${earned} poin` : "Benar! (poin sudah didapat sebelumnya)");
     else toast.error("Jawaban belum tepat. Coba lagi.");
     setSubmitting(false);
-    if (correct) { setDone(true); onCompleted(); }
+    if (correct) {
+      markDwellComplete(student.id, location!.id);
+      setDone(true);
+      onCompleted(location!.id);
+    }
   }
+
 
   const streetViewUrl = location.street_view_enabled
     ? `https://www.google.com/maps/embed/v1/streetview?key=${import.meta.env.VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY}&location=${location.lat},${location.lng}&heading=0&pitch=0&fov=90`
@@ -446,6 +546,24 @@ function LocationDialog({
             )}
           </div>
 
+          {alreadyEarned ? (
+            <div className="rounded-lg bg-slate-100 p-3 text-sm font-semibold text-slate-700">
+              ✓ Poin titik ini sudah kamu dapatkan. Kunjungan berikutnya tidak menambah poin.
+            </div>
+          ) : (
+            <div className={`rounded-lg p-3 text-center ${dwellDone ? "bg-emerald-100 text-emerald-900" : "bg-amber-100 text-amber-900"}`}>
+              <div className="text-[11px] uppercase tracking-wide">Waktu belajar di titik ini</div>
+              <div className="text-3xl font-black tabular-nums">{formatCountdown(remainingMs)}</div>
+              <div className="text-[11px]">
+                {dwellDone
+                  ? "Waktu terpenuhi — poin bisa diambil!"
+                  : inRange
+                    ? "Hitung mundur berjalan selama kamu di dalam radius."
+                    : "Hitung mundur berhenti. Masuk ke radius untuk melanjutkan."}
+              </div>
+            </div>
+          )}
+
           {location.description && (
             <RichText text={location.description} className="text-sm text-muted-foreground" />
           )}
@@ -467,8 +585,12 @@ function LocationDialog({
                 text={location.content ?? ""}
                 className="prose prose-sm max-w-none rounded-lg bg-slate-50 p-3 leading-relaxed"
               />
-              {!done && <Button onClick={openContent} className="w-full bg-emerald-600 hover:bg-emerald-700">Selesai baca (+{location.points} poin)</Button>}
-              {done && <div className="text-center text-emerald-600 font-semibold">✓ Selesai</div>}
+              {!done && !alreadyEarned && (
+                <Button onClick={openContent} disabled={!dwellDone} className="w-full bg-emerald-600 hover:bg-emerald-700">
+                  {dwellDone ? `Selesai baca (+${location.points} poin)` : `Tunggu ${formatCountdown(remainingMs)} lagi`}
+                </Button>
+              )}
+              {(done || alreadyEarned) && <div className="text-center text-emerald-600 font-semibold">✓ Selesai</div>}
             </div>
           ) : (
             <div className="space-y-3">
@@ -482,12 +604,16 @@ function LocationDialog({
                   >{c}</button>
                 ))}
               </div>
-              <Button onClick={submitAnswer} disabled={!answer || submitting} className="w-full bg-amber-500 hover:bg-amber-600">
-                {submitting ? "Mengirim…" : `Kirim jawaban (+${location.points} poin bila benar)`}
+              <Button onClick={submitAnswer} disabled={!answer || submitting || !dwellDone} className="w-full bg-amber-500 hover:bg-amber-600">
+                {!dwellDone
+                  ? `Tunggu ${formatCountdown(remainingMs)} lagi`
+                  : submitting ? "Mengirim…" : `Kirim jawaban (+${location.points} poin bila benar)`}
               </Button>
+              {alreadyEarned && <p className="text-[11px] text-muted-foreground">Poin titik ini sudah didapat; menjawab lagi tidak menambah poin.</p>}
             </div>
           )}
         </div>
+
       </DialogContent>
     </Dialog>
   );
