@@ -207,7 +207,7 @@ function ARPage() {
   const answerSoal = useCallback(
     async (loc: Location, choice: string) => {
       if (!student) return;
-      const remainingSoal = earned.has(loc.id)
+      const remainingSoal = earnedRef.current.has(loc.id)
         ? 0
         : Math.max(0, DWELL_REQUIRED_MS - (dwell[loc.id] ?? getDwellMs(student.id, loc.id)));
       if (remainingSoal > 0) {
