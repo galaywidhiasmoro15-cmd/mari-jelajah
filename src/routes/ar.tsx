@@ -11,6 +11,13 @@ import { ARScene, type ARActivation, type ARStatus, type ARWorldLocation } from 
 import { ARCapabilityNotice } from "@/components/ar/ARCapabilityNotice";
 import { detectARCapabilities, type ARCapabilities } from "@/lib/ar/webxr";
 import { DeviceOrientationPose } from "@/lib/ar/devicePose";
+import {
+  DWELL_REQUIRED_MS,
+  addDwellMs,
+  formatCountdown,
+  getDwellMs,
+  markDwellComplete,
+} from "@/lib/dwell";
 
 export const Route = createFileRoute("/ar")({
   ssr: false,
@@ -50,6 +57,58 @@ function ARPage() {
   const [status, setStatus] = useState<ARStatus | null>(null);
   const openIdRef = useRef<string | null>(null);
   openIdRef.current = openId;
+  const [dwell, setDwell] = useState<Record<string, number>>({});
+  const [earned, setEarned] = useState<Set<string>>(new Set());
+  const inRangeRef = useRef<string[]>([]);
+  const earnedRef = useRef<Set<string>>(new Set());
+  earnedRef.current = earned;
+  const studentIdRef = useRef<string | null>(null);
+  studentIdRef.current = student?.id ?? null;
+
+  // Titik yang poinnya sudah pernah didapat siswa ini
+  useEffect(() => {
+    if (!student) return;
+    void supabase
+      .from("activities")
+      .select("location_id, action, is_correct")
+      .eq("student_id", student.id)
+      .then(({ data }) => {
+        const set = new Set<string>();
+        (data || []).forEach((a: { location_id: string; action: string; is_correct: boolean | null }) => {
+          if (a.action === "award_materi" || a.is_correct === true) set.add(a.location_id);
+        });
+        set.forEach((id) => markDwellComplete(student.id, id));
+        setEarned(set);
+      });
+  }, [student?.id]);
+
+  // Hitung mundur 2 menit selama siswa berada di dalam radius
+  useEffect(() => {
+    const tick = 1000;
+    const id = window.setInterval(() => {
+      const sid = studentIdRef.current;
+      if (!sid) return;
+      setDwell((prev) => {
+        const next = { ...prev };
+        inRangeRef.current.forEach((locId) => {
+          if (earnedRef.current.has(locId)) return;
+          if ((next[locId] ?? getDwellMs(sid, locId)) >= DWELL_REQUIRED_MS) return;
+          next[locId] = addDwellMs(sid, locId, tick);
+        });
+        return next;
+      });
+    }, tick);
+    return () => window.clearInterval(id);
+  }, []);
+
+  const remainingFor = useCallback(
+    (locId: string) => {
+      if (!student || earned.has(locId)) return 0;
+      const ms = dwell[locId] ?? getDwellMs(student.id, locId);
+      return Math.max(0, DWELL_REQUIRED_MS - ms);
+    },
+    [student, dwell, earned],
+  );
 
   async function lockLandscape() {
     try {
@@ -112,6 +171,16 @@ function ARPage() {
   const awardMateri = useCallback(
     async (loc: Location) => {
       if (!student) return;
+      if (earned.has(loc.id)) {
+        toast.info("Poin titik ini sudah kamu dapatkan.");
+        setAnswered("done");
+        return;
+      }
+      const remaining = Math.max(0, DWELL_REQUIRED_MS - (dwell[loc.id] ?? getDwellMs(student.id, loc.id)));
+      if (remaining > 0) {
+        toast.error(`Bertahan ${formatCountdown(remaining)} lagi di titik ini untuk mendapat poin.`);
+        return;
+      }
       const { data: prev } = await supabase
         .from("activities")
         .select("id")
@@ -129,14 +198,22 @@ function ARPage() {
         setStudent({ ...student, points: np, level: levelFromPoints(np) });
         toast.success(`+${loc.points} poin!`);
       }
+      setEarned((s2) => new Set(s2).add(loc.id));
       setAnswered("done");
     },
-    [student],
+    [student, dwell, earned],
   );
 
   const answerSoal = useCallback(
     async (loc: Location, choice: string) => {
       if (!student) return;
+      const remainingSoal = earned.has(loc.id)
+        ? 0
+        : Math.max(0, DWELL_REQUIRED_MS - (dwell[loc.id] ?? getDwellMs(student.id, loc.id)));
+      if (remainingSoal > 0) {
+        toast.error(`Pelajari dulu — ${formatCountdown(remainingSoal)} lagi sebelum menjawab.`);
+        return;
+      }
       const correct = choice === loc.correct_answer;
       let earned = 0;
       if (correct) {
@@ -163,10 +240,12 @@ function ARPage() {
         points_earned: earned,
       });
       setAnswered(correct ? "correct" : "wrong");
-      if (correct) toast.success(earned > 0 ? `Benar! +${earned} poin` : "Benar!");
-      else toast.error("Belum tepat, coba lagi.");
+      if (correct) {
+        setEarned((s2) => new Set(s2).add(loc.id));
+        toast.success(earned > 0 ? `Benar! +${earned} poin` : "Benar!");
+      } else toast.error("Belum tepat, coba lagi.");
     },
-    [student],
+    [student, dwell, earned],
   );
 
   const onActivate = useCallback(
@@ -191,6 +270,7 @@ function ARPage() {
   // Buka otomatis saat siswa masuk radius; tutup saat keluar (histeresis di ARScene).
   const onStatus = useCallback((s: ARStatus) => {
     setStatus(s);
+    inRangeRef.current = s.inRange.map((r) => r.id);
     const current = openIdRef.current;
     if (!current) {
       const nearest = [...s.inRange].sort((a, b) => a.distance - b.distance)[0];
@@ -284,6 +364,24 @@ function ARPage() {
           {status.nearest.title} • {Math.round(status.nearest.distance)} m
         </div>
       )}
+      {(() => {
+        const activeId = openId ?? status?.inRange?.[0]?.id ?? null;
+        if (!activeId || !student) return null;
+        const done = earned.has(activeId);
+        const remaining = remainingFor(activeId);
+        return (
+          <div
+            className={`pointer-events-none absolute left-1/2 top-24 -translate-x-1/2 rounded-xl px-3 py-1.5 text-center ring-1 ${
+              done || remaining === 0 ? "bg-emerald-600/80 ring-emerald-200/40" : "bg-black/60 ring-white/25"
+            }`}
+          >
+            <div className="text-[9px] uppercase tracking-wide text-white/80">
+              {done ? "Poin sudah didapat" : remaining === 0 ? "Waktu terpenuhi" : "Waktu belajar tersisa"}
+            </div>
+            {!done && <div className="text-lg font-black tabular-nums text-white">{formatCountdown(remaining)}</div>}
+          </div>
+        );
+      })()}
       {error && (
         <div className="pointer-events-none absolute bottom-10 left-1/2 max-w-[80%] -translate-x-1/2 rounded-lg bg-red-600/85 px-3 py-1 text-center text-[11px] text-white">
           {error}
