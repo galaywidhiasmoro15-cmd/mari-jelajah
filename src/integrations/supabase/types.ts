@@ -65,80 +65,197 @@ export type Database = {
           },
         ]
       }
+      event_settings: {
+        Row: {
+          end_time: string | null
+          event_date: string | null
+          id: string
+          name: string
+          singleton: boolean
+          start_time: string | null
+          timezone: string
+          updated_at: string
+        }
+        Insert: {
+          end_time?: string | null
+          event_date?: string | null
+          id?: string
+          name?: string
+          singleton?: boolean
+          start_time?: string | null
+          timezone?: string
+          updated_at?: string
+        }
+        Update: {
+          end_time?: string | null
+          event_date?: string | null
+          id?: string
+          name?: string
+          singleton?: boolean
+          start_time?: string | null
+          timezone?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       locations: {
         Row: {
+          activity_type: string
           altitude_meters: number | null
           anchor_height_meters: number | null
           ar_offset_x: number | null
           ar_offset_y: number | null
           ar_offset_z: number | null
           ar_scale: number | null
+          award_points: boolean
           choices: Json | null
           content: string | null
           correct_answer: string | null
           created_at: string
           description: string | null
+          dwell_seconds: number
+          end_time: string | null
           external_id: string | null
           id: string
           kind: string
           lat: number
           lng: number
+          media_image_url: string | null
+          media_video_url: string | null
           points: number
           question: string | null
           radius_meters: number
+          schedule_date: string | null
+          sort_order: number
+          start_time: string | null
           street_view_enabled: boolean
           title: string
           updated_at: string
         }
         Insert: {
+          activity_type?: string
           altitude_meters?: number | null
           anchor_height_meters?: number | null
           ar_offset_x?: number | null
           ar_offset_y?: number | null
           ar_offset_z?: number | null
           ar_scale?: number | null
+          award_points?: boolean
           choices?: Json | null
           content?: string | null
           correct_answer?: string | null
           created_at?: string
           description?: string | null
+          dwell_seconds?: number
+          end_time?: string | null
           external_id?: string | null
           id?: string
           kind?: string
           lat: number
           lng: number
+          media_image_url?: string | null
+          media_video_url?: string | null
           points?: number
           question?: string | null
           radius_meters?: number
+          schedule_date?: string | null
+          sort_order?: number
+          start_time?: string | null
           street_view_enabled?: boolean
           title: string
           updated_at?: string
         }
         Update: {
+          activity_type?: string
           altitude_meters?: number | null
           anchor_height_meters?: number | null
           ar_offset_x?: number | null
           ar_offset_y?: number | null
           ar_offset_z?: number | null
           ar_scale?: number | null
+          award_points?: boolean
           choices?: Json | null
           content?: string | null
           correct_answer?: string | null
           created_at?: string
           description?: string | null
+          dwell_seconds?: number
+          end_time?: string | null
           external_id?: string | null
           id?: string
           kind?: string
           lat?: number
           lng?: number
+          media_image_url?: string | null
+          media_video_url?: string | null
           points?: number
           question?: string | null
           radius_meters?: number
+          schedule_date?: string | null
+          sort_order?: number
+          start_time?: string | null
           street_view_enabled?: boolean
           title?: string
           updated_at?: string
         }
         Relationships: []
+      }
+      student_progress: {
+        Row: {
+          answered_correct: boolean | null
+          completed_at: string | null
+          created_at: string
+          dwell_seconds: number
+          id: string
+          last_tick_at: string | null
+          location_id: string
+          points_awarded: number
+          status: string
+          student_id: string
+          updated_at: string
+        }
+        Insert: {
+          answered_correct?: boolean | null
+          completed_at?: string | null
+          created_at?: string
+          dwell_seconds?: number
+          id?: string
+          last_tick_at?: string | null
+          location_id: string
+          points_awarded?: number
+          status?: string
+          student_id: string
+          updated_at?: string
+        }
+        Update: {
+          answered_correct?: boolean | null
+          completed_at?: string | null
+          created_at?: string
+          dwell_seconds?: number
+          id?: string
+          last_tick_at?: string | null
+          location_id?: string
+          points_awarded?: number
+          status?: string
+          student_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_progress_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_progress_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       students: {
         Row: {
@@ -175,7 +292,22 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      claim_activity: {
+        Args: { p_answer?: string; p_location: string; p_student: string }
+        Returns: Json
+      }
+      location_window: {
+        Args: { p_location: string }
+        Returns: {
+          ends_at: string
+          starts_at: string
+        }[]
+      }
+      server_now: { Args: never; Returns: string }
+      tick_dwell: {
+        Args: { p_location: string; p_student: string }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never
