@@ -15,6 +15,13 @@
       "when": 1788087213566,
       "tag": "0001_locations_ar_world_metadata",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789088231593,
+      "tag": "0002_learning_schedule_dwell_points",
+      "breakpoints": true
     }
   ]
 }
