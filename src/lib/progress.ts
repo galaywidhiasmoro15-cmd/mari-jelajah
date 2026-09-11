@@ -64,7 +64,7 @@ export async function claimActivity(
   const { data, error } = await supabase.rpc("claim_activity", {
     p_student: studentId,
     p_location: locationId,
-    p_answer: answer ?? null,
+    p_answer: answer ?? undefined,
   });
   if (error) return { error: error.message };
   return data as unknown as ClaimResult;
