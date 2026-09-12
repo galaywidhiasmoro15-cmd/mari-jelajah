@@ -5,6 +5,7 @@ import { WorldAnchorSystem, isInsideRadius } from "@/lib/ar/gpsAnchor";
 import { projectObject, screenSpaceBearingDelta } from "@/lib/ar/projection";
 import { makeButtonTexture, makeLabelTexture, makePanelTexture } from "@/lib/ar/textures";
 import { extractARMedia } from "@/lib/ar/media";
+import { normalizeImageUrl, normalizeVideoUrl } from "@/lib/media-url";
 
 export type ARWorldLocation = {
   id: string;
@@ -15,6 +16,8 @@ export type ARWorldLocation = {
   lng: number;
   radius_meters: number;
   kind: "materi" | "soal";
+  media_image_url?: string | null;
+  media_video_url?: string | null;
   question: string | null;
   choices: string[] | null;
   correct_answer: string | null;
