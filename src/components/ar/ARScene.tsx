@@ -322,33 +322,66 @@ export function ARScene(props: Props) {
           const panel = planeMesh(texture, 1.6, 1.0);
           panelGroup.add(panel);
 
-          // ---- media dari tautan di dalam materi/soal ----
+          // ---- media dari tautan di dalam materi/soal + media titik ----
           const token = buildToken;
-          media.images.slice(0, 2).forEach((url, i) => {
+          const imageUrls = [
+            ...(open.media_image_url ? [open.media_image_url] : []),
+            ...media.images,
+          ]
+            .map((u) => normalizeImageUrl(u))
+            .filter((u, i, arr) => u && arr.indexOf(u) === i);
+
+          const addImagePlane = (tex: THREE.Texture, i: number) => {
+            tex.colorSpace = THREE.SRGBColorSpace;
+            const img = tex.image as { width?: number; height?: number } | undefined;
+            const aspect = (img?.width || 1) / (img?.height || 1);
+            const w = 1.15;
+            const h = w / Math.max(0.35, Math.min(3, aspect));
+            const mesh = planeMesh(tex, w, h);
+            mesh.position.set(1.45, 0.35 - i * (h + 0.12), 0.01);
+            panelGroup.add(mesh);
+          };
+
+          imageUrls.slice(0, 2).forEach((url, i) => {
             const loader = new THREE.TextureLoader();
             loader.setCrossOrigin("anonymous");
-            loader.load(
-              url,
-              (tex) => {
-                if (token !== buildToken) {
-                  tex.dispose();
-                  return;
-                }
-                tex.colorSpace = THREE.SRGBColorSpace;
-                const img = tex.image as { width?: number; height?: number } | undefined;
-                const aspect = (img?.width || 1) / (img?.height || 1);
-                const w = 1.15;
-                const h = w / Math.max(0.35, Math.min(3, aspect));
-                const mesh = planeMesh(tex, w, h);
-                mesh.position.set(1.45, 0.35 - i * (h + 0.12), 0.01);
-                panelGroup.add(mesh);
-              },
-              undefined,
-              () => {
-                propsRef.current.onError("Gambar pada materi gagal dimuat (periksa tautan/izin server gambar).");
-              },
-            );
+            const onOk = (tex: THREE.Texture) => {
+              if (token !== buildToken) {
+                tex.dispose();
+                return;
+              }
+              addImagePlane(tex, i);
+            };
+            loader.load(url, onOk, undefined, () => {
+              // Banyak server gambar menolak akses lintas situs (CORS) sehingga tekstur
+              // tidak bisa dipakai WebGL. Coba sekali lagi lewat layanan gambar publik.
+              const proxied = `https://images.weserv.nl/?url=${encodeURIComponent(url.replace(/^https?:\/\//, ""))}&w=1024`;
+              new THREE.TextureLoader().load(proxied, onOk, undefined, () => {
+                propsRef.current.onError("Gambar tidak dapat ditampilkan di AR. Periksa tautan gambar (harus tautan langsung ke berkas gambar).");
+              });
+            });
           });
+
+          // ---- video titik (berkas mp4/webm) sebagai bidang video di AR ----
+          const vid = normalizeVideoUrl(open.media_video_url ?? null);
+          if (vid?.kind === "file") {
+            const el = document.createElement("video");
+            el.src = vid.url;
+            el.crossOrigin = "anonymous";
+            el.loop = true;
+            el.muted = true;
+            el.playsInline = true;
+            void el.play().catch(() => {
+              propsRef.current.onError("Video tidak dapat diputar otomatis di perangkat ini.");
+            });
+            const vtex = new THREE.VideoTexture(el);
+            vtex.colorSpace = THREE.SRGBColorSpace;
+            const mesh = planeMesh(vtex, 1.4, 0.79);
+            mesh.position.set(-1.6, 0.3, 0.01);
+            panelGroup.add(mesh);
+          } else if (vid) {
+            propsRef.current.onError("Video titik ini hanya bisa ditonton di mode peta.");
+          }
 
           media.models.slice(0, 1).forEach((url) => {
             void import("three/examples/jsm/loaders/GLTFLoader.js")
